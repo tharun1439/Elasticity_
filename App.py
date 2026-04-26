@@ -131,10 +131,11 @@ elif st.session_state.step == 2:
 
     data = st.session_state.values
 
-    p1 = st.number_input("Original Price", min_value=0.01, value=data.get("p1", 10.0))
-    q1 = st.number_input("Original Quantity", min_value=0.01, value=data.get("q1", 100.0))
-    p2 = st.number_input("New Price", min_value=0.01, value=data.get("p2", 5.0))
-    q2 = st.number_input("New Quantity", min_value=0.01, value=data.get("q2", 150.0))
+    # Fixed: Explicitly cast values to float to match min_value type
+    p1 = st.number_input("Original Price", min_value=0.01, value=float(data.get("p1", 10.0)))
+    q1 = st.number_input("Original Quantity", min_value=0.01, value=float(data.get("q1", 100.0)))
+    p2 = st.number_input("New Price", min_value=0.01, value=float(data.get("p2", 5.0)))
+    q2 = st.number_input("New Quantity", min_value=0.01, value=float(data.get("q2", 150.0)))
 
     if st.button("Calculate ➡️"):
         st.session_state.values = {
