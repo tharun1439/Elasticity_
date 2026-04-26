@@ -8,24 +8,20 @@ from streamlit_lottie import st_lottie
 st.set_page_config(page_title="Elasticity Pro", page_icon="📊", layout="centered")
 
 # ---------------- SAFE SESSION STATE ----------------
+# We use "user_inputs" instead of "values" to avoid naming conflicts with dict.values()
 if "step" not in st.session_state:
     st.session_state.step = 1
 
-DEFAULT_VALUES = {
+DEFAULT_DATA = {
     "p1": 10.0,
     "p2": 5.0,
     "q1": 100.0,
     "q2": 150.0
 }
 
-# Critical Fix: Ensure session_state.values is a dictionary and contains all keys
-if "values" not in st.session_state or not isinstance(st.session_state.values, dict):
-    st.session_state.values = DEFAULT_VALUES.copy()
-else:
-    # Double check all keys exist to prevent .get() returning None
-    for key, val in DEFAULT_VALUES.items():
-        if key not in st.session_state.values:
-            st.session_state.values[key] = val
+# CRITICAL FIX: Ensure user_inputs is a dictionary. If it's a function or list, overwrite it.
+if "user_inputs" not in st.session_state or not isinstance(st.session_state.user_inputs, dict):
+    st.session_state.user_inputs = DEFAULT_DATA.copy()
 
 # ---------------- LOTTIE ----------------
 def load_lottie(url):
@@ -41,38 +37,12 @@ l3 = load_lottie("https://assets2.lottiefiles.com/packages/lf20_jcikwtux.json")
 # ---------------- MOBILE UI CSS ----------------
 st.markdown("""
 <style>
-.stApp {
-    background: linear-gradient(180deg,#020617,#0f172a);
-}
-.block-container {
-    max-width: 420px;
-    margin: auto;
-    padding-top: 2rem;
-}
-.card {
-    background: rgba(30,41,59,0.75);
-    padding: 20px;
-    border-radius: 20px;
-    margin-top: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-h1 {
-    text-align:center;
-    color:#22c55e;
-}
-.stButton>button {
-    width:100%;
-    height:55px;
-    border-radius:15px;
-    font-size:18px;
-    background:#22c55e;
-    color:white;
-}
-.steps {
-    text-align:center;
-    font-size:22px;
-    color:#94a3b8;
-}
+.stApp { background: linear-gradient(180deg,#020617,#0f172a); }
+.block-container { max-width: 420px; margin: auto; padding-top: 2rem; }
+.card { background: rgba(30,41,59,0.75); padding: 20px; border-radius: 20px; margin-top: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+h1 { text-align:center; color:#22c55e; }
+.stButton>button { width:100%; height:55px; border-radius:15px; font-size:18px; background:#22c55e; color:white; }
+.steps { text-align:center; font-size:22px; color:#94a3b8; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -89,12 +59,7 @@ if st.session_state.step == 1:
     if l1:
         st_lottie(l1, height=180)
     st.subheader("📘 Learn")
-    st.write("""
-Price Elasticity shows how demand changes when price changes.
-- Elastic (>1)
-- Inelastic (<1)
-- Unitary (=1)
-""")
+    st.write("Price Elasticity shows how demand changes when price changes.")
     if st.button("Start ➡️"):
         st.session_state.step = 2
         st.rerun()
@@ -107,17 +72,17 @@ elif st.session_state.step == 2:
         st_lottie(l2, height=180)
     st.subheader("✍️ Input Values")
 
-    # Get data from state
-    data = st.session_state.values
+    # Access the dictionary safely
+    data = st.session_state.user_inputs
 
-    # Fixed: Force casting to float to prevent type-mismatch with min_value
+    # The float() wrapper prevents type-mismatch errors
     p1 = st.number_input("Original Price", min_value=0.01, value=float(data.get("p1", 10.0)))
     q1 = st.number_input("Original Quantity", min_value=0.01, value=float(data.get("q1", 100.0)))
     p2 = st.number_input("New Price", min_value=0.01, value=float(data.get("p2", 5.0)))
     q2 = st.number_input("New Quantity", min_value=0.01, value=float(data.get("q2", 150.0)))
 
     if st.button("Calculate ➡️"):
-        st.session_state.values = {"p1": p1, "p2": p2, "q1": q1, "q2": q2}
+        st.session_state.user_inputs = {"p1": p1, "p2": p2, "q1": q1, "q2": q2}
         st.session_state.step = 3
         st.rerun()
 
@@ -133,31 +98,29 @@ elif st.session_state.step == 3:
         st_lottie(l3, height=180)
     st.subheader("📊 Results")
 
-    data = st.session_state.values
-    p1, p2 = float(data["p1"]), float(data["p2"])
-    q1, q2 = float(data["q1"]), float(data["q2"])
+    res = st.session_state.user_inputs
+    p1, p2 = float(res["p1"]), float(res["p2"])
+    q1, q2 = float(res["q1"]), float(res["q2"])
 
     with st.spinner("Analyzing..."):
-        time.sleep(1)
+        time.sleep(0.5)
 
     delta_p = p2 - p1
     delta_q = q2 - q1
 
-    ep_prop = (delta_q / delta_p) * (p1 / q1) if delta_p != 0 else 0
+    # Midpoint/Arc Elasticity Formula
     ep_arc = ((q2 - q1) / (q2 + q1)) * ((p2 + p1) / (p2 - p1)) if (p2 - p1) != 0 else 0
 
-    def status(v):
+    def get_status(v):
         v = abs(v)
         if v < 1: return "Inelastic 📉"
         elif v == 1: return "Unitary ⚖️"
         else: return "Elastic 📈"
 
-    c1, c2 = st.columns(2)
-    c1.metric("Prop. Elasticity", round(ep_prop, 2))
-    c2.metric("Arc Elasticity", round(ep_arc, 2))
+    st.metric("Arc Elasticity", round(ep_arc, 3))
+    st.success(get_status(ep_arc))
 
-    st.success(status(ep_arc))
-
+    # Graph
     fig, ax = plt.subplots()
     fig.patch.set_facecolor("#020617")
     ax.set_facecolor("#0f172a")
@@ -165,7 +128,6 @@ elif st.session_state.step == 3:
     ax.set_xlabel("Quantity", color="white")
     ax.set_ylabel("Price", color="white")
     ax.tick_params(colors='white')
-    ax.grid(True, linestyle="--", alpha=0.3)
     st.pyplot(fig)
 
     if st.button("🔄 Restart"):
